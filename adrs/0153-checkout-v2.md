@@ -116,7 +116,8 @@ When the input `ssh-strict` is set to `false`, the options `CheckHostIP` and `St
 
 Note:
 - When `ssh-strict` is set to `true` (default), the SSH option `CheckHostIP` can safely be disabled.
-  Strict host checking verifies the server's public key. Therefore, IP verification is unnecessary and noisy. For example:
+  Strict host checking verifies the server's public key. Therefore, IP verification is unnecessary
+  and noisy. For example:
   > Warning: Permanently added the RSA host key for IP address '140.82.113.4' to the list of known hosts.
 - Since GIT_SSH_COMMAND overrides core.sshCommand, temporarily set the env var when fetching the repo.
 - Refer [here](https://linux.die.net/man/5/ssh_config) for SSH config details.
