@@ -79,7 +79,7 @@ The credentials will be persisted on disk. This will allow users to script authe
 
 A post script will remove the credentials (cleanup for self-hosted).
 
-Users may opt-out by specifying `persist-credentials: false`.
+Users may opt-out by specifying `persist-credentials: false`
 
 Note:
 - Users scripting `git commit` may need to set the username and email. The service does not provide any reasonable default value. Users can add `git config user.name <NAME>` and `git config user.email <EMAIL>`. We will document this guidance.
