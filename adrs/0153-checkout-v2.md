@@ -109,7 +109,7 @@ The user host key database (`~/.ssh/known_hosts`) will be copied to a unique fil
 The SSH command will be overridden for the local git config:
 
 ```
-git config core.sshCommand "ssh -i path-to-ssh-key -o CheckHostIP=no -o StrictHostKeyChecking=yes -o UserKnownHostsFile=path-to-known-hosts"
+git config core.sshCommand "ssh -i path-to-ssh-key -o StrictHostKeyChecking=yes -o CheckHostIP=no -o UserKnownHostsFile=path-to-known-hosts"
 ```
 
 When the input `ssh-strict` is set to `false`, the options `CheckHostIP` and `StrictHostKeyChecking` will not be overridden.
