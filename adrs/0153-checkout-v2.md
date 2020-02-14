@@ -27,11 +27,22 @@ We want to take this opportunity to make behavioral changes, from v1. This docum
       event.  Otherwise, defaults to `master`.
   token:
     description: >
-      Personal access token (PAT) or SSH key used to fetch the repository. The PAT or SSH key is
-      configured with the local git config, which enables your scripts to run authenticated git commands.
-      The post-job step removes the local configuration for the PAT or SSH key. [Learn more about
-      creating and using encrypted secrets](https://help.github.com/en/actions/automating-your-workflow-with-github-actions/creating-and-using-encrypted-secrets)
+      Personal access token (PAT) used to fetch the repository. The PAT is configured
+      with the local git config, which enables your scripts to run authenticated git
+      commands. The post-job step removes the PAT. [Learn more about creating and using
+      encrypted secrets](https://help.github.com/en/actions/automating-your-workflow-with-github-actions/creating-and-using-encrypted-secrets)
     default: ${{ github.token }}
+  ssh-key:
+    description: >
+      SSH key used to fetch the repository. SSH key is configured with the local
+      git config, which enables your scripts to run authenticated git commands.
+      The post-job step removes the SSH key. [Learn more about creating and using
+      encrypted secrets](https://help.github.com/en/actions/automating-your-workflow-with-github-actions/creating-and-using-encrypted-secrets)
+  ssh-known-hosts:
+    description: 'Known hosts in addition to the user and global host key database'
+  ssh-strict:
+    description: 'Whether to perform strict host key checking'
+    default: true
   persist-credentials:
     description: 'Whether to persist the token in the git config'
     default: true
@@ -92,15 +103,23 @@ runner between jobs.
 The SSH key must be written with strict file permissions. The SSH client requires the file
 to be read/write for the user, and not accessible by others.
 
+The user host key database (`~/.ssh/known_hosts`) will be copied to a unique file under
+`$RUNNER_TEMP`. And values from the input `ssh-known-hosts` will be added to the file.
+
 The SSH command will be overridden for the local git config:
 
 ```
-git config core.sshCommand "ssh -i path-to-ssh-key -o CheckHostIP=no"
+git config core.sshCommand "ssh -i path-to-ssh-key -o CheckHostIP=no -o StrictHostKeyChecking=yes -o UserKnownHostsFile=path-to-known-hosts"
 ```
 
-[CheckHostIP](https://linux.die.net/man/5/ssh_config):
+When the input `ssh-strict` is set to `false`, the options `CheckHostIP` and `StrictHostKeyChecking` will not be overridden.
 
-> If this flag is set to ''yes'', ssh(1) will additionally check the host IP address in the known_hosts file. This allows ssh to detect if a host key changed due to DNS spoofing. If the option is set to ''no'', the check will not be executed. The default is ''yes''.
+Note:
+- When `ssh-strict` is set to `true` (default), the SSH option `CheckHostIP` can safely be disabled.
+  Strict host checking verifies the server's public key. Therefore, IP verification is unnecessary and noisy. For example:
+  > Warning: Permanently added the RSA host key for IP address '140.82.113.4' to the list of known hosts.
+- Since GIT_SSH_COMMAND overrides core.sshCommand, temporarily set the env var when fetching the repo.
+- Refer [here](https://linux.die.net/man/5/ssh_config) for SSH config details.
 
 ### Fetch behavior
 
