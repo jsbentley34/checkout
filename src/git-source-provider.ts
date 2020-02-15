@@ -1,3 +1,4 @@
+import * as assert from 'assert'
 import * as core from '@actions/core'
 import * as fs from 'fs'
 import * as fsHelper from './fs-helper'
@@ -7,32 +8,27 @@ import * as io from '@actions/io'
 import * as path from 'path'
 import * as refHelper from './ref-helper'
 import * as stateHelper from './state-helper'
+import {default as uuid} from 'uuid/v4'
 import {IGitCommandManager} from './git-command-manager'
+import {IGitSourceSettings} from './git-source-settings'
 
-const serverUrl = 'https://github.com/'
-const authConfigKey = `http.${serverUrl}.extraheader`
+const hostname = 'github.com'
+const extraHeaderKey = `http.https://${hostname}/.extraheader`
+const sshCommandKey = 'core.sshCommand'
 
-export interface ISourceSettings {
-  repositoryPath: string
-  repositoryOwner: string
-  repositoryName: string
-  ref: string
-  commit: string
-  clean: boolean
-  fetchDepth: number
-  lfs: boolean
-  authToken: string
-  persistCredentials: boolean
-}
-
-export async function getSource(settings: ISourceSettings): Promise<void> {
+export async function getSource(settings: IGitSourceSettings): Promise<void> {
   // Repository URL
   core.info(
     `Syncing repository: ${settings.repositoryOwner}/${settings.repositoryName}`
   )
-  const repositoryUrl = `https://github.com/${encodeURIComponent(
+  const repositoryUrl = `https://${hostname}/${encodeURIComponent(
     settings.repositoryOwner
   )}/${encodeURIComponent(settings.repositoryName)}`
+  const sshRepositoryUrl = settings.sshKey
+    ? `ssh://git@${hostname}/${encodeURIComponent(
+        settings.repositoryOwner
+      )}/${encodeURIComponent(settings.repositoryName)}.git`
+    : ''
 
   // Remove conflicting file path
   if (fsHelper.fileExistsSync(settings.repositoryPath)) {
@@ -82,7 +78,7 @@ export async function getSource(settings: ISourceSettings): Promise<void> {
       !fsHelper.directoryExistsSync(path.join(settings.repositoryPath, '.git'))
     ) {
       await git.init()
-      await git.remoteAdd('origin', repositoryUrl)
+      await git.remoteAdd('origin', sshRepositoryUrl || repositoryUrl)
     }
 
     // Disable automatic garbage collection
@@ -92,12 +88,16 @@ export async function getSource(settings: ISourceSettings): Promise<void> {
       )
     }
 
-    // Remove possible previous extraheader
-    await removeGitConfig(git, authConfigKey)
+    // Remove possible previous auth settings
+    await removeGitConfig(git, extraHeaderKey)
+    await removeGitConfig(git, sshCommandKey)
 
     try {
-      // Config extraheader
+      // Config http extra header
       await configureAuthToken(git, settings.authToken)
+
+      // Configure ssh auth
+      await configureSsh(git, settings)
 
       // LFS install
       if (settings.lfs) {
@@ -129,7 +129,7 @@ export async function getSource(settings: ISourceSettings): Promise<void> {
       await git.log1()
     } finally {
       if (!settings.persistCredentials) {
-        await removeGitConfig(git, authConfigKey)
+        await removeGitConfig(git, extraHeaderKey)
       }
     }
   }
@@ -152,11 +152,11 @@ export async function cleanup(repositoryPath: string): Promise<void> {
   }
 
   // Remove extraheader
-  await removeGitConfig(git, authConfigKey)
+  await removeGitConfig(git, extraHeaderKey)
 }
 
 async function getGitCommandManager(
-  settings: ISourceSettings
+  settings: IGitSourceSettings
 ): Promise<IGitCommandManager> {
   core.info(`Working directory is '${settings.repositoryPath}'`)
   let git = (null as unknown) as IGitCommandManager
@@ -269,7 +269,7 @@ async function configureAuthToken(
   // by process creation audit events, which are commonly logged. For more information,
   // refer to https://docs.microsoft.com/en-us/windows-server/identity/ad-ds/manage/component-updates/command-line-process-auditing
   const placeholder = `AUTHORIZATION: basic ***`
-  await git.config(authConfigKey, placeholder)
+  await git.config(extraHeaderKey, placeholder)
 
   // Determine the basic credential value
   const basicCredential = Buffer.from(
@@ -293,6 +293,20 @@ async function configureAuthToken(
     `AUTHORIZATION: basic ${basicCredential}`
   )
   await fs.promises.writeFile(configPath, content)
+}
+
+async function configureSsh(
+  git: IGitCommandManager,
+  settings: ISourceSettings
+): promise<void> {
+  if (!settings.sshKey) {
+    return
+  }
+
+  const runnerTemp = process.env['RUNNER_TEMP'] || ''
+  assert.ok(runnerTemp, 'RUNNER_TEMP is not defined')
+  const uniqueId = uuid()
+  const keyPath = path.join(runnerTemp, uniqueId)
 }
 
 async function removeGitConfig(
