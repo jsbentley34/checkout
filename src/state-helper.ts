@@ -15,8 +15,7 @@ export const RepositoryPath =
 /**
  * The SSH key path for the POST action. The value is empty during the MAIN action.
  */
-export const SshKeyPath =
-  (process.env['STATE_sshKeyPath'] as string) || ''
+export const SshKeyPath = (process.env['STATE_sshKeyPath'] as string) || ''
 
 /**
  * The SSH known hosts path for the POST action. The value is empty during the MAIN action.
@@ -39,11 +38,7 @@ export function setRepositoryPath(repositoryPath: string) {
  * Save the SSH key path so the POST action can retrieve the value.
  */
 export function setSshKeyPath(sshKeyPath: string) {
-  coreCommand.issueCommand(
-    'save-state',
-    {name: 'sshKeyPath'},
-    sshKeyPath
-  )
+  coreCommand.issueCommand('save-state', {name: 'sshKeyPath'}, sshKeyPath)
 }
 
 /**

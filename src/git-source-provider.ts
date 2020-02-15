@@ -1,20 +1,17 @@
-import * as assert from 'assert'
 import * as core from '@actions/core'
 import * as fs from 'fs'
 import * as fsHelper from './fs-helper'
+import * as gitAuthHelper from './git-auth-helper'
 import * as gitCommandManager from './git-command-manager'
 import * as githubApiHelper from './github-api-helper'
 import * as io from '@actions/io'
 import * as path from 'path'
 import * as refHelper from './ref-helper'
 import * as stateHelper from './state-helper'
-import {default as uuid} from 'uuid/v4'
 import {IGitCommandManager} from './git-command-manager'
 import {IGitSourceSettings} from './git-source-settings'
 
 const hostname = 'github.com'
-const extraHeaderKey = `http.https://${hostname}/.extraheader`
-const sshCommandKey = 'core.sshCommand'
 
 export async function getSource(settings: IGitSourceSettings): Promise<void> {
   // Repository URL
@@ -88,16 +85,10 @@ export async function getSource(settings: IGitSourceSettings): Promise<void> {
       )
     }
 
-    // Remove possible previous auth settings
-    await removeGitConfig(git, extraHeaderKey)
-    await removeGitConfig(git, sshCommandKey)
-
+    const authHelper = gitAuthHelper.createAuthHelper(git, settings)
     try {
-      // Config http extra header
-      await configureAuthToken(git, settings.authToken)
-
-      // Configure ssh auth
-      await configureSsh(git, settings)
+      // Configure auth
+      await authHelper.configureAuth()
 
       // LFS install
       if (settings.lfs) {
@@ -128,8 +119,9 @@ export async function getSource(settings: IGitSourceSettings): Promise<void> {
       // Dump some info about the checked out commit
       await git.log1()
     } finally {
+      // Remove auth
       if (!settings.persistCredentials) {
-        await removeGitConfig(git, extraHeaderKey)
+        await authHelper.removeAuth()
       }
     }
   }
@@ -146,22 +138,22 @@ export async function cleanup(repositoryPath: string): Promise<void> {
 
   let git: IGitCommandManager
   try {
-    git = await gitCommandManager.CreateCommandManager(repositoryPath, false)
+    git = await gitCommandManager.createCommandManager(repositoryPath, false)
   } catch {
     return
   }
 
-  // Remove extraheader
-  await removeGitConfig(git, extraHeaderKey)
+  // Remove auth
+  const authHelper = gitAuthHelper.createAuthHelper(git)
+  await authHelper.removeAuth()
 }
 
 async function getGitCommandManager(
   settings: IGitSourceSettings
-): Promise<IGitCommandManager> {
+): Promise<IGitCommandManager | undefined> {
   core.info(`Working directory is '${settings.repositoryPath}'`)
-  let git = (null as unknown) as IGitCommandManager
   try {
-    return await gitCommandManager.CreateCommandManager(
+    return await gitCommandManager.createCommandManager(
       settings.repositoryPath,
       settings.lfs
     )
@@ -172,12 +164,12 @@ async function getGitCommandManager(
     }
 
     // Otherwise fallback to REST API
-    return (null as unknown) as IGitCommandManager
+    return undefined
   }
 }
 
 async function prepareExistingDirectory(
-  git: IGitCommandManager,
+  git: IGitCommandManager | undefined,
   repositoryPath: string,
   repositoryUrl: string,
   clean: boolean
@@ -258,66 +250,5 @@ async function prepareExistingDirectory(
     for (const file of await fs.promises.readdir(repositoryPath)) {
       await io.rmRF(path.join(repositoryPath, file))
     }
-  }
-}
-
-async function configureAuthToken(
-  git: IGitCommandManager,
-  authToken: string
-): Promise<void> {
-  // Configure a placeholder value. This approach avoids the credential being captured
-  // by process creation audit events, which are commonly logged. For more information,
-  // refer to https://docs.microsoft.com/en-us/windows-server/identity/ad-ds/manage/component-updates/command-line-process-auditing
-  const placeholder = `AUTHORIZATION: basic ***`
-  await git.config(extraHeaderKey, placeholder)
-
-  // Determine the basic credential value
-  const basicCredential = Buffer.from(
-    `x-access-token:${authToken}`,
-    'utf8'
-  ).toString('base64')
-  core.setSecret(basicCredential)
-
-  // Replace the value in the config file
-  const configPath = path.join(git.getWorkingDirectory(), '.git', 'config')
-  let content = (await fs.promises.readFile(configPath)).toString()
-  const placeholderIndex = content.indexOf(placeholder)
-  if (
-    placeholderIndex < 0 ||
-    placeholderIndex != content.lastIndexOf(placeholder)
-  ) {
-    throw new Error('Unable to replace auth placeholder in .git/config')
-  }
-  content = content.replace(
-    placeholder,
-    `AUTHORIZATION: basic ${basicCredential}`
-  )
-  await fs.promises.writeFile(configPath, content)
-}
-
-async function configureSsh(
-  git: IGitCommandManager,
-  settings: ISourceSettings
-): promise<void> {
-  if (!settings.sshKey) {
-    return
-  }
-
-  const runnerTemp = process.env['RUNNER_TEMP'] || ''
-  assert.ok(runnerTemp, 'RUNNER_TEMP is not defined')
-  const uniqueId = uuid()
-  const keyPath = path.join(runnerTemp, uniqueId)
-}
-
-async function removeGitConfig(
-  git: IGitCommandManager,
-  configKey: string
-): Promise<void> {
-  if (
-    (await git.configExists(configKey)) &&
-    !(await git.tryConfigUnset(configKey))
-  ) {
-    // Load the config contents
-    core.warning(`Failed to remove '${configKey}' from the git config`)
   }
 }

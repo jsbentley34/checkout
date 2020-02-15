@@ -1,30 +1,28 @@
 import * as assert from 'assert'
 import * as core from '@actions/core'
 import * as fs from 'fs'
-import * as fsHelper from './fs-helper'
-import * as gitCommandManager from './git-command-manager'
 import * as io from '@actions/io'
+import * as os from 'os'
 import * as path from 'path'
 import * as stateHelper from './state-helper'
 import {default as uuid} from 'uuid/v4'
 import {IGitCommandManager} from './git-command-manager'
-import { IGitSourceSettings } from './git-source-settings'
-import { settings } from 'cluster'
+import {IGitSourceSettings} from './git-source-settings'
 
 const hostname = 'github.com'
 const extraHeaderKey = `http.https://${hostname}/.extraheader`
 const sshCommandKey = 'core.sshCommand'
 
 export interface IGitAuthHelper {
-  configureAuth(git: IGitCommandManager, settings: IGitSourceSettings): Promise<void>
-  removeAuth(git: IGitCommandManager): Promise<void>
+  configureAuth(): Promise<void>
+  removeAuth(): Promise<void>
 }
 
-export function CreateAuthHelper(
+export function createAuthHelper(
   git: IGitCommandManager,
-  settings: IGitSourceSettings
+  settings?: IGitSourceSettings
 ): IGitAuthHelper {
-  return GitAuthHelper.createAuthHelper(git, settings)
+  return new GitAuthHelper(git, settings)
 }
 
 class GitAuthHelper {
@@ -33,75 +31,30 @@ class GitAuthHelper {
   private sshKeyPath = ''
   private sshKnownHostsPath = ''
 
-  // Private constructor; use createAuthHelper()
-  private constructor(g: IGitCommandManager, s: IGitSourceSettings | undefined) {
-    this.git = g
-    this.settings = s || ({} as unknown) as IGitSourceSettings
+  constructor(
+    gitCommandManager: IGitCommandManager,
+    gitSourceSettings?: IGitSourceSettings
+  ) {
+    this.git = gitCommandManager
+    this.settings = gitSourceSettings || (({} as unknown) as IGitSourceSettings)
   }
 
-  async configureAuth(git: IGitCommandManager, settings: IGitSourceSettings): Promise<void> {
-    await this.configureToken()
+  async configureAuth(): Promise<void> {
+    // Remove possible previous values
+    await this.removeSsh()
+    await this.removeToken()
+
+    // Configure new values
     await this.configureSsh()
+    await this.configureToken()
   }
 
-// export async function configureAuth(git: IGitCommandManager): Promise<void> {
-//     try {
-//       // Config http extra header
-//       await configureAuthToken(git, settings.authToken)
-
-//       // Configure ssh auth
-//       await configureSsh(git, settings)
-
-//       // LFS install
-//       if (settings.lfs) {
-//         await git.lfsInstall()
-//       }
-
-//       // Fetch
-//       const refSpec = refHelper.getRefSpec(settings.ref, settings.commit)
-//       await git.fetch(settings.fetchDepth, refSpec)
-
-//       // Checkout info
-//       const checkoutInfo = await refHelper.getCheckoutInfo(
-//         git,
-//         settings.ref,
-//         settings.commit
-//       )
-
-//       // LFS fetch
-//       // Explicit lfs-fetch to avoid slow checkout (fetches one lfs object at a time).
-//       // Explicit lfs fetch will fetch lfs objects in parallel.
-//       if (settings.lfs) {
-//         await git.lfsFetch(checkoutInfo.startPoint || checkoutInfo.ref)
-//       }
-
-//       // Checkout
-//       await git.checkout(checkoutInfo.ref, checkoutInfo.startPoint)
-
-//       // Dump some info about the checked out commit
-//       await git.log1()
-//     } finally {
-//       if (!settings.persistCredentials) {
-//         await removeGitConfig(git, extraHeaderKey)
-//       }
-//     }
-//   }
-// }
-
-  async removeAuth(git: IGitCommandManager): Promise<void>{
+  async removeAuth(): Promise<void> {
     await this.removeSsh()
     await this.removeToken()
   }
 
-  static createAuthHelper(
-    git: IGitCommandManager,
-    settings: IGitSourceSettings | undefined
-  ): IGitAuthHelper {
-    return new GitAuthHelper(git, settings)
-  }
-
-  private async configureSsh(
-  ):Promise<void> {
+  private async configureSsh(): Promise<void> {
     if (!this.settings.sshKey) {
       return
     }
@@ -112,7 +65,48 @@ class GitAuthHelper {
     const uniqueId = uuid()
     this.sshKeyPath = path.join(runnerTemp, uniqueId)
     stateHelper.setSshKeyPath(this.sshKeyPath)
-    await fs.promises.writeFile()
+    await fs.promises.mkdir(runnerTemp, {recursive: true})
+    await fs.promises.writeFile(
+      this.sshKeyPath,
+      Buffer.from(this.settings.sshKey)
+    )
+    await fs.promises.chmod(this.sshKeyPath, 0o600)
+
+    // Write known hosts
+    const userKnownHostsPath = path.join(os.homedir(), '.ssh', 'known_hosts')
+    let userKnownHosts = ''
+    try {
+      userKnownHosts = (
+        await fs.promises.readFile(userKnownHostsPath)
+      ).toString()
+    } catch (err) {
+      if (err.code !== 'ENOENT') {
+        throw err
+      }
+    }
+    let knownHosts = ''
+    if (userKnownHosts) {
+      knownHosts = `# Begin from ${userKnownHostsPath}\n${userKnownHosts}\n# End from ${userKnownHostsPath}\n`
+    }
+    knownHosts +=
+      'github.com ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAq2A7hRGmdnm9tUDbO9IDSwBK6TbQa+PXYPCPy6rbTrTtw7PHkccKrpp0yVhp5HdEIcKr6pLlVDBfOLX9QUsyCOV0wzfjIJNlGEYsdlLJizHhbn2mUjvSAHQqZETYP81eFzLQNnPHt4EVVUh7VfDESU84KezmD5QlWpXLmvU31/yMf+Se8xhHTvKSCZIFImWwoG6mbUoWf9nzpIoaSjB+weqqUUmpaaasXVal72J+UX2B+2RPW3RcT0eOzQgqlJL3RKrTJvdsjE3JEAvGq3lGHSZXy28G3skua2SmVi/w4yCE6gbODqnTWlg7+wC604ydGXA8VJiS5ap43JXiUFFAaQ==\n'
+    this.sshKnownHostsPath = path.join(runnerTemp, `${uniqueId}_known_hosts`)
+    stateHelper.setSshKnownHostsPath(this.sshKnownHostsPath)
+    await fs.promises.writeFile(this.sshKnownHostsPath, knownHosts)
+
+    // Configure GIT_SSH_COMMAND
+    const sshPath = await io.which('ssh', true)
+    let sshCommand = `"${sshPath}" -i "${this.sshKeyPath}"`
+    if (this.settings.sshStrict) {
+      sshCommand += ' -o StrictHostKeyChecking=yes -o CheckHostIP=no'
+    }
+    sshCommand += ` -o "UserKnownHostsFile=${this.sshKnownHostsPath}"`
+    this.git.setEnvironmentVariable('GIT_SSH_COMMAND', sshCommand)
+
+    // Configure core.sshCommand
+    if (this.settings.persistCredentials) {
+      await this.git.config(sshCommandKey, sshCommand)
+    }
   }
 
   private async configureToken(): Promise<void> {
@@ -135,7 +129,11 @@ class GitAuthHelper {
     core.setSecret(basicCredential)
 
     // Replace the value in the config file
-    const configPath = path.join(this.git.getWorkingDirectory(), '.git', 'config')
+    const configPath = path.join(
+      this.git.getWorkingDirectory(),
+      '.git',
+      'config'
+    )
     let content = (await fs.promises.readFile(configPath)).toString()
     const placeholderIndex = content.indexOf(placeholder)
     if (
@@ -157,35 +155,32 @@ class GitAuthHelper {
     if (keyPath) {
       try {
         await io.rmRF(keyPath)
-      }
-      catch (err) {
+      } catch (err) {
         core.warning(`Failed to remove SSH key '${keyPath}'`)
       }
     }
-  
+
     // SSH known hosts
-    const knownHostsPath = this.sshKnownHostsPath || stateHelper.SshKnownHostsPath
+    const knownHostsPath =
+      this.sshKnownHostsPath || stateHelper.SshKnownHostsPath
     if (knownHostsPath) {
       try {
         await io.rmRF(knownHostsPath)
-      }
-      catch {
+      } catch {
         // Intentionally empty
       }
     }
-  
+
     // SSH command
     await this.removeGitConfig(sshCommandKey)
   }
-  
+
   private async removeToken(): Promise<void> {
     // HTTP extra header
     await this.removeGitConfig(extraHeaderKey)
   }
 
-  private async removeGitConfig(
-    configKey: string
-  ): Promise<void> {
+  private async removeGitConfig(configKey: string): Promise<void> {
     if (
       (await this.git.configExists(configKey)) &&
       !(await this.git.tryConfigUnset(configKey))
@@ -195,129 +190,3 @@ class GitAuthHelper {
     }
   }
 }
-
-// export async function configureAuth(git: IGitCommandManager): Promise<void> {
-//     try {
-//       // Config http extra header
-//       await configureAuthToken(git, settings.authToken)
-
-//       // Configure ssh auth
-//       await configureSsh(git, settings)
-
-//       // LFS install
-//       if (settings.lfs) {
-//         await git.lfsInstall()
-//       }
-
-//       // Fetch
-//       const refSpec = refHelper.getRefSpec(settings.ref, settings.commit)
-//       await git.fetch(settings.fetchDepth, refSpec)
-
-//       // Checkout info
-//       const checkoutInfo = await refHelper.getCheckoutInfo(
-//         git,
-//         settings.ref,
-//         settings.commit
-//       )
-
-//       // LFS fetch
-//       // Explicit lfs-fetch to avoid slow checkout (fetches one lfs object at a time).
-//       // Explicit lfs fetch will fetch lfs objects in parallel.
-//       if (settings.lfs) {
-//         await git.lfsFetch(checkoutInfo.startPoint || checkoutInfo.ref)
-//       }
-
-//       // Checkout
-//       await git.checkout(checkoutInfo.ref, checkoutInfo.startPoint)
-
-//       // Dump some info about the checked out commit
-//       await git.log1()
-//     } finally {
-//       if (!settings.persistCredentials) {
-//         await removeGitConfig(git, extraHeaderKey)
-//       }
-//     }
-//   }
-// }
-
-// export async function cleanup(repositoryPath: string): Promise<void> {
-//   // Repo exists?
-//   if (
-//     !repositoryPath ||
-//     !fsHelper.fileExistsSync(path.join(repositoryPath, '.git', 'config'))
-//   ) {
-//     return
-//   }
-
-//   let git: IGitCommandManager
-//   try {
-//     git = await gitCommandManager.CreateCommandManager(repositoryPath, false)
-//   } catch {
-//     return
-//   }
-
-//   // Remove extraheader
-//   await removeGitConfig(git, extraHeaderKey)
-// }
-
-// async function configureAuthToken(
-//   git: IGitCommandManager,
-//   authToken: string
-// ): Promise<void> {
-//   // Configure a placeholder value. This approach avoids the credential being captured
-//   // by process creation audit events, which are commonly logged. For more information,
-//   // refer to https://docs.microsoft.com/en-us/windows-server/identity/ad-ds/manage/component-updates/command-line-process-auditing
-//   const placeholder = `AUTHORIZATION: basic ***`
-//   await git.config(extraHeaderKey, placeholder)
-
-//   // Determine the basic credential value
-//   const basicCredential = Buffer.from(
-//     `x-access-token:${authToken}`,
-//     'utf8'
-//   ).toString('base64')
-//   core.setSecret(basicCredential)
-
-//   // Replace the value in the config file
-//   const configPath = path.join(git.getWorkingDirectory(), '.git', 'config')
-//   let content = (await fs.promises.readFile(configPath)).toString()
-//   const placeholderIndex = content.indexOf(placeholder)
-//   if (
-//     placeholderIndex < 0 ||
-//     placeholderIndex != content.lastIndexOf(placeholder)
-//   ) {
-//     throw new Error('Unable to replace auth placeholder in .git/config')
-//   }
-//   content = content.replace(
-//     placeholder,
-//     `AUTHORIZATION: basic ${basicCredential}`
-//   )
-//   await fs.promises.writeFile(configPath, content)
-// }
-
-// async function configureSsh(
-//   git: IGitCommandManager,
-//   settings: ISourceSettings
-// ): promise<void> {
-//   if (!settings.sshKey) {
-//     return
-//   }
-
-//   const runnerTemp = process.env['RUNNER_TEMP'] || ''
-//   assert.ok(runnerTemp, 'RUNNER_TEMP is not defined')
-//   const uniqueId = uuid()
-//   const keyPath = path.join(runnerTemp, uniqueId)
-//   const
-// }
-
-// async function removeGitConfig(
-//   git: IGitCommandManager,
-//   configKey: string
-// ): Promise<void> {
-//   if (
-//     (await git.configExists(configKey)) &&
-//     !(await git.tryConfigUnset(configKey))
-//   ) {
-//     // Load the config contents
-//     core.warning(`Failed to remove '${configKey}' from the git config`)
-//   }
-// }
