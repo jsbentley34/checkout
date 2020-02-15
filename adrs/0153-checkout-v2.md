@@ -39,12 +39,15 @@ We want to take this opportunity to make behavioral changes, from v1. This docum
       The post-job step removes the SSH key. [Learn more about creating and using
       encrypted secrets](https://help.github.com/en/actions/automating-your-workflow-with-github-actions/creating-and-using-encrypted-secrets)
   ssh-known-hosts:
-    description: 'Known hosts in addition to the user and global host key database'
+    description: >
+      Known hosts in addition to the user and global host key database. The public
+      SSH keys for a host may be obtained using the utility `ssh-keyscan`. For example,
+      `ssh-keyscan github.com`. The public key for github.com is always implicitly added.
   ssh-strict:
     description: 'Whether to perform strict host key checking'
     default: true
   persist-credentials:
-    description: 'Whether to persist the token in the git config'
+    description: 'Whether to configure the token or SSH key with the local git config'
     default: true
   path:
     description: 'Relative path under $GITHUB_WORKSPACE to place the repository'
