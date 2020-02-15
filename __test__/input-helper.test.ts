@@ -4,7 +4,7 @@ import * as fsHelper from '../lib/fs-helper'
 import * as github from '@actions/github'
 import * as inputHelper from '../lib/input-helper'
 import * as path from 'path'
-import {ISourceSettings} from '../lib/git-source-provider'
+import {IGitSourceSettings} from '../lib/git-source-settings'
 
 const originalGitHubWorkspace = process.env['GITHUB_WORKSPACE']
 const gitHubWorkspace = path.resolve('/checkout-tests/workspace')
@@ -62,7 +62,7 @@ describe('input-helper tests', () => {
   })
 
   it('sets defaults', () => {
-    const settings: ISourceSettings = inputHelper.getInputs()
+    const settings: IGitSourceSettings = inputHelper.getInputs()
     expect(settings).toBeTruthy()
     expect(settings.authToken).toBeFalsy()
     expect(settings.clean).toBe(true)
@@ -80,7 +80,7 @@ describe('input-helper tests', () => {
     let originalRef = github.context.ref
     try {
       github.context.ref = 'some-unqualified-ref'
-      const settings: ISourceSettings = inputHelper.getInputs()
+      const settings: IGitSourceSettings = inputHelper.getInputs()
       expect(settings).toBeTruthy()
       expect(settings.commit).toBe('1234567890123456789012345678901234567890')
       expect(settings.ref).toBe('refs/heads/some-unqualified-ref')
@@ -98,7 +98,7 @@ describe('input-helper tests', () => {
 
   it('roots path', () => {
     inputs.path = 'some-directory/some-subdirectory'
-    const settings: ISourceSettings = inputHelper.getInputs()
+    const settings: IGitSourceSettings = inputHelper.getInputs()
     expect(settings.repositoryPath).toBe(
       path.join(gitHubWorkspace, 'some-directory', 'some-subdirectory')
     )
@@ -106,21 +106,21 @@ describe('input-helper tests', () => {
 
   it('sets correct default ref/sha for other repo', () => {
     inputs.repository = 'some-owner/some-other-repo'
-    const settings: ISourceSettings = inputHelper.getInputs()
+    const settings: IGitSourceSettings = inputHelper.getInputs()
     expect(settings.ref).toBe('refs/heads/master')
     expect(settings.commit).toBeFalsy()
   })
 
   it('sets ref to empty when explicit sha', () => {
     inputs.ref = '1111111111222222222233333333334444444444'
-    const settings: ISourceSettings = inputHelper.getInputs()
+    const settings: IGitSourceSettings = inputHelper.getInputs()
     expect(settings.ref).toBeFalsy()
     expect(settings.commit).toBe('1111111111222222222233333333334444444444')
   })
 
   it('sets sha to empty when explicit ref', () => {
     inputs.ref = 'refs/heads/some-other-ref'
-    const settings: ISourceSettings = inputHelper.getInputs()
+    const settings: IGitSourceSettings = inputHelper.getInputs()
     expect(settings.ref).toBe('refs/heads/some-other-ref')
     expect(settings.commit).toBeFalsy()
   })

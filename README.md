@@ -45,14 +45,30 @@ Refer [here](https://github.com/actions/checkout/blob/v1/README.md) for previous
     # Otherwise, defaults to `master`.
     ref: ''
 
-    # Auth token used to fetch the repository. The token is stored in the local git
-    # config, which enables your scripts to run authenticated git commands. The
-    # post-job step removes the token from the git config. [Learn more about creating
-    # and using encrypted secrets](https://help.github.com/en/actions/automating-your-workflow-with-github-actions/creating-and-using-encrypted-secrets)
+    # Personal access token (PAT) used to fetch the repository. The PAT is configured
+    # with the local git config, which enables your scripts to run authenticated git
+    # commands. The post-job step removes the PAT. [Learn more about creating and
+    # using encrypted secrets](https://help.github.com/en/actions/automating-your-workflow-with-github-actions/creating-and-using-encrypted-secrets)
     # Default: ${{ github.token }}
     token: ''
 
-    # Whether to persist the token in the git config
+    # SSH key used to fetch the repository. SSH key is configured with the local git
+    # config, which enables your scripts to run authenticated git commands. The
+    # post-job step removes the SSH key. [Learn more about creating and using
+    # encrypted secrets](https://help.github.com/en/actions/automating-your-workflow-with-github-actions/creating-and-using-encrypted-secrets)
+    ssh-key: ''
+
+    # Known hosts in addition to the user and global host key database. The public SSH
+    # keys for a host may be obtained using the utility `ssh-keyscan`. For example,
+    # `ssh-keyscan github.com`. The public key for github.com is always implicitly
+    # added.
+    ssh-known-hosts: ''
+
+    # Whether to perform strict host key checking
+    # Default: true
+    ssh-strict: ''
+
+    # Whether to configure the token or SSH key with the local git config
     # Default: true
     persist-credentials: ''
 
