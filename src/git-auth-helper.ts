@@ -67,10 +67,7 @@ class GitAuthHelper {
     this.sshKeyPath = path.join(runnerTemp, uniqueId)
     stateHelper.setSshKeyPath(this.sshKeyPath)
     await fs.promises.mkdir(runnerTemp, {recursive: true})
-    await fs.promises.writeFile(this.sshKeyPath, this.settings.sshKey + '\n', { mode: 0o600 })
-    // await fs.promises.chmod(this.sshKeyPath, 0o600)
-    // await exec(`ls -la ${this.sshKeyPath}`)
-    // await exec(`cat ${this.sshKeyPath}`)
+    await fs.promises.writeFile(this.sshKeyPath, this.settings.sshKey.trim() + '\n', { mode: 0o600 })
 
     // Write known hosts
     const userKnownHostsPath = path.join(os.homedir(), '.ssh', 'known_hosts')
@@ -96,11 +93,11 @@ class GitAuthHelper {
 
     // Configure GIT_SSH_COMMAND
     const sshPath = await io.which('ssh', true)
-    let sshCommand = `"${sshPath}" -i ${this.sshKeyPath}`
+    let sshCommand = `"${sshPath}" -i "${this.sshKeyPath}"`
     if (this.settings.sshStrict) {
       sshCommand += ' -o StrictHostKeyChecking=yes -o CheckHostIP=no'
     }
-    sshCommand += ` -o UserKnownHostsFile=${this.sshKnownHostsPath}`
+    sshCommand += ` -o "UserKnownHostsFile=${this.sshKnownHostsPath}"`
     this.git.setEnvironmentVariable('GIT_SSH_COMMAND', sshCommand)
 
     // Configure core.sshCommand
