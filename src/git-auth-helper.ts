@@ -69,8 +69,8 @@ class GitAuthHelper {
     await fs.promises.mkdir(runnerTemp, {recursive: true})
     await fs.promises.writeFile(this.sshKeyPath, this.settings.sshKey + '\n', { mode: 0o600 })
     // await fs.promises.chmod(this.sshKeyPath, 0o600)
-    await exec(`ls -la ${this.sshKeyPath}`)
-    await exec(`cat ${this.sshKeyPath}`)
+    // await exec(`ls -la ${this.sshKeyPath}`)
+    // await exec(`cat ${this.sshKeyPath}`)
 
     // Write known hosts
     const userKnownHostsPath = path.join(os.homedir(), '.ssh', 'known_hosts')

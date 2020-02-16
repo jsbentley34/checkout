@@ -5108,7 +5108,6 @@ const os = __importStar(__webpack_require__(87));
 const path = __importStar(__webpack_require__(622));
 const stateHelper = __importStar(__webpack_require__(153));
 const v4_1 = __importDefault(__webpack_require__(826));
-const exec_1 = __webpack_require__(986);
 const hostname = 'github.com';
 const extraHeaderKey = `http.https://${hostname}/.extraheader`;
 const sshCommandKey = 'core.sshCommand';
@@ -5153,8 +5152,8 @@ class GitAuthHelper {
             yield fs.promises.mkdir(runnerTemp, { recursive: true });
             yield fs.promises.writeFile(this.sshKeyPath, this.settings.sshKey + '\n', { mode: 0o600 });
             // await fs.promises.chmod(this.sshKeyPath, 0o600)
-            yield exec_1.exec(`ls -la ${this.sshKeyPath}`);
-            yield exec_1.exec(`cat ${this.sshKeyPath}`);
+            // await exec(`ls -la ${this.sshKeyPath}`)
+            // await exec(`cat ${this.sshKeyPath}`)
             // Write known hosts
             const userKnownHostsPath = path.join(os.homedir(), '.ssh', 'known_hosts');
             let userKnownHosts = '';
