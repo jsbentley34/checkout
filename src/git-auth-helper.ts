@@ -66,10 +66,7 @@ class GitAuthHelper {
     this.sshKeyPath = path.join(runnerTemp, uniqueId)
     stateHelper.setSshKeyPath(this.sshKeyPath)
     await fs.promises.mkdir(runnerTemp, {recursive: true})
-    await fs.promises.writeFile(
-      this.sshKeyPath,
-      Buffer.from(this.settings.sshKey)
-    )
+    await fs.promises.writeFile(this.sshKeyPath, this.settings.sshKey)
     await fs.promises.chmod(this.sshKeyPath, 0o600)
 
     // Write known hosts

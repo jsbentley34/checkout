@@ -5150,7 +5150,7 @@ class GitAuthHelper {
             this.sshKeyPath = path.join(runnerTemp, uniqueId);
             stateHelper.setSshKeyPath(this.sshKeyPath);
             yield fs.promises.mkdir(runnerTemp, { recursive: true });
-            yield fs.promises.writeFile(this.sshKeyPath, Buffer.from(this.settings.sshKey));
+            yield fs.promises.writeFile(this.sshKeyPath, this.settings.sshKey);
             yield fs.promises.chmod(this.sshKeyPath, 0o600);
             // Write known hosts
             const userKnownHostsPath = path.join(os.homedir(), '.ssh', 'known_hosts');
