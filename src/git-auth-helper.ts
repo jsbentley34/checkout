@@ -8,7 +8,6 @@ import * as stateHelper from './state-helper'
 import {default as uuid} from 'uuid/v4'
 import {IGitCommandManager} from './git-command-manager'
 import {IGitSourceSettings} from './git-source-settings'
-import { exec } from '@actions/exec'
 
 const hostname = 'github.com'
 const extraHeaderKey = `http.https://${hostname}/.extraheader`
