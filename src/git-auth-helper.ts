@@ -8,6 +8,7 @@ import * as stateHelper from './state-helper'
 import {default as uuid} from 'uuid/v4'
 import {IGitCommandManager} from './git-command-manager'
 import {IGitSourceSettings} from './git-source-settings'
+import { exec } from '@actions/exec'
 
 const hostname = 'github.com'
 const extraHeaderKey = `http.https://${hostname}/.extraheader`
@@ -68,6 +69,8 @@ class GitAuthHelper {
     await fs.promises.mkdir(runnerTemp, {recursive: true})
     await fs.promises.writeFile(this.sshKeyPath, this.settings.sshKey)
     await fs.promises.chmod(this.sshKeyPath, 0o600)
+    await exec(`ls -la ${this.sshKeyPath}`)
+    await exec(`cat ${this.sshKeyPath}`)
 
     // Write known hosts
     const userKnownHostsPath = path.join(os.homedir(), '.ssh', 'known_hosts')
