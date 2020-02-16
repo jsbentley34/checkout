@@ -5174,11 +5174,11 @@ class GitAuthHelper {
             yield fs.promises.writeFile(this.sshKnownHostsPath, knownHosts);
             // Configure GIT_SSH_COMMAND
             const sshPath = yield io.which('ssh', true);
-            let sshCommand = `"${sshPath}" -i "${this.sshKeyPath}"`;
+            let sshCommand = `"${sshPath}" -i ${this.sshKeyPath}`;
             if (this.settings.sshStrict) {
                 sshCommand += ' -o StrictHostKeyChecking=yes -o CheckHostIP=no';
             }
-            sshCommand += ` -o "UserKnownHostsFile=${this.sshKnownHostsPath}"`;
+            sshCommand += ` -o UserKnownHostsFile=${this.sshKnownHostsPath}`;
             this.git.setEnvironmentVariable('GIT_SSH_COMMAND', sshCommand);
             // Configure core.sshCommand
             if (this.settings.persistCredentials) {
