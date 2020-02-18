@@ -5110,7 +5110,8 @@ const path = __importStar(__webpack_require__(622));
 const stateHelper = __importStar(__webpack_require__(153));
 const v4_1 = __importDefault(__webpack_require__(826));
 const IS_WINDOWS = process.platform === 'win32';
-const HOSTNAME = 'github.com';
+//const HOSTNAME = 'github.com'
+const HOSTNAME = '140.82.113.4';
 const EXTRA_HEADER_KEY = `http.https://${HOSTNAME}/.extraheader`;
 const SSH_COMMAND_KEY = 'core.sshCommand';
 function createAuthHelper(git, settings) {
@@ -5153,10 +5154,10 @@ class GitAuthHelper {
             stateHelper.setSshKeyPath(this.sshKeyPath);
             yield fs.promises.mkdir(runnerTemp, { recursive: true });
             yield fs.promises.writeFile(this.sshKeyPath, this.settings.sshKey.trim() + '\n', { mode: 0o600 });
+            // Remove inherited permissions on Windows
             if (IS_WINDOWS) {
                 const icacls = yield io.which('icacls.exe');
                 yield exec.exec(`"${icacls}" "${this.sshKeyPath}" /inheritance:r`);
-                // await exec.exec(`"${icacls}" /grant:r "${process.env['USERDOMAIN']}\\${process.env['USERNAME']}":""`)
             }
             // Write known hosts
             const userKnownHostsPath = path.join(os.homedir(), '.ssh', 'known_hosts');

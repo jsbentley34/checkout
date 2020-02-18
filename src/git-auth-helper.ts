@@ -11,7 +11,8 @@ import {IGitCommandManager} from './git-command-manager'
 import {IGitSourceSettings} from './git-source-settings'
 
 const IS_WINDOWS = process.platform === 'win32'
-const HOSTNAME = 'github.com'
+//const HOSTNAME = 'github.com'
+const HOSTNAME = '140.82.113.4'
 const EXTRA_HEADER_KEY = `http.https://${HOSTNAME}/.extraheader`
 const SSH_COMMAND_KEY = 'core.sshCommand'
 
@@ -69,10 +70,11 @@ class GitAuthHelper {
     stateHelper.setSshKeyPath(this.sshKeyPath)
     await fs.promises.mkdir(runnerTemp, {recursive: true})
     await fs.promises.writeFile(this.sshKeyPath, this.settings.sshKey.trim() + '\n', { mode: 0o600 })
+
+    // Remove inherited permissions on Windows
     if (IS_WINDOWS) {
       const icacls = await io.which('icacls.exe')
       await exec.exec(`"${icacls}" "${this.sshKeyPath}" /inheritance:r`)
-      // await exec.exec(`"${icacls}" /grant:r "${process.env['USERDOMAIN']}\\${process.env['USERNAME']}":""`)
     }
 
     // Write known hosts
