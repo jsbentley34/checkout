@@ -5155,7 +5155,7 @@ class GitAuthHelper {
             yield fs.promises.writeFile(this.sshKeyPath, this.settings.sshKey.trim() + '\n', { mode: 0o600 });
             if (IS_WINDOWS) {
                 const icacls = yield io.which('icacls.exe');
-                yield exec.exec(`"${icacls}" /inheritance:r`);
+                yield exec.exec(`"${icacls}" "${this.sshKeyPath}" /inheritance:r`);
                 // await exec.exec(`"${icacls}" /grant:r "${process.env['USERDOMAIN']}\\${process.env['USERNAME']}":""`)
             }
             // Write known hosts

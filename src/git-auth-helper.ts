@@ -71,7 +71,7 @@ class GitAuthHelper {
     await fs.promises.writeFile(this.sshKeyPath, this.settings.sshKey.trim() + '\n', { mode: 0o600 })
     if (IS_WINDOWS) {
       const icacls = await io.which('icacls.exe')
-      await exec.exec(`"${icacls}" /inheritance:r`)
+      await exec.exec(`"${icacls}" "${this.sshKeyPath}" /inheritance:r`)
       // await exec.exec(`"${icacls}" /grant:r "${process.env['USERDOMAIN']}\\${process.env['USERNAME']}":""`)
     }
 
