@@ -5102,15 +5102,17 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const assert = __importStar(__webpack_require__(357));
 const core = __importStar(__webpack_require__(470));
+const exec = __importStar(__webpack_require__(986));
 const fs = __importStar(__webpack_require__(747));
 const io = __importStar(__webpack_require__(1));
 const os = __importStar(__webpack_require__(87));
 const path = __importStar(__webpack_require__(622));
 const stateHelper = __importStar(__webpack_require__(153));
 const v4_1 = __importDefault(__webpack_require__(826));
-const hostname = 'github.com';
-const extraHeaderKey = `http.https://${hostname}/.extraheader`;
-const sshCommandKey = 'core.sshCommand';
+const IS_WINDOWS = process.platform === 'win32';
+const HOSTNAME = 'github.com';
+const EXTRA_HEADER_KEY = `http.https://${HOSTNAME}/.extraheader`;
+const SSH_COMMAND_KEY = 'core.sshCommand';
 function createAuthHelper(git, settings) {
     return new GitAuthHelper(git, settings);
 }
@@ -5151,6 +5153,11 @@ class GitAuthHelper {
             stateHelper.setSshKeyPath(this.sshKeyPath);
             yield fs.promises.mkdir(runnerTemp, { recursive: true });
             yield fs.promises.writeFile(this.sshKeyPath, this.settings.sshKey.trim() + '\n', { mode: 0o600 });
+            if (IS_WINDOWS) {
+                const icacls = yield io.which('icacls.exe');
+                yield exec.exec(`"${icacls}" /inheritance:r`);
+                // await exec.exec(`"${icacls}" /grant:r "${process.env['USERDOMAIN']}\\${process.env['USERNAME']}":""`)
+            }
             // Write known hosts
             const userKnownHostsPath = path.join(os.homedir(), '.ssh', 'known_hosts');
             let userKnownHosts = '';
@@ -5181,7 +5188,7 @@ class GitAuthHelper {
             this.git.setEnvironmentVariable('GIT_SSH_COMMAND', sshCommand);
             // Configure core.sshCommand
             if (this.settings.persistCredentials) {
-                yield this.git.config(sshCommandKey, sshCommand);
+                yield this.git.config(SSH_COMMAND_KEY, sshCommand);
             }
         });
     }
@@ -5195,7 +5202,7 @@ class GitAuthHelper {
             // by process creation audit events, which are commonly logged. For more information,
             // refer to https://docs.microsoft.com/en-us/windows-server/identity/ad-ds/manage/component-updates/command-line-process-auditing
             const placeholder = `AUTHORIZATION: basic ***`;
-            yield this.git.config(extraHeaderKey, placeholder);
+            yield this.git.config(EXTRA_HEADER_KEY, placeholder);
             // Determine the basic credential value
             const basicCredential = Buffer.from(`x-access-token:${this.settings.authToken}`, 'utf8').toString('base64');
             core.setSecret(basicCredential);
@@ -5234,13 +5241,13 @@ class GitAuthHelper {
                 }
             }
             // SSH command
-            yield this.removeGitConfig(sshCommandKey);
+            yield this.removeGitConfig(SSH_COMMAND_KEY);
         });
     }
     removeToken() {
         return __awaiter(this, void 0, void 0, function* () {
             // HTTP extra header
-            yield this.removeGitConfig(extraHeaderKey);
+            yield this.removeGitConfig(EXTRA_HEADER_KEY);
         });
     }
     removeGitConfig(configKey) {

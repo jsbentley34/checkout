@@ -1,5 +1,6 @@
 import * as assert from 'assert'
 import * as core from '@actions/core'
+import * as exec from '@actions/exec'
 import * as fs from 'fs'
 import * as io from '@actions/io'
 import * as os from 'os'
@@ -9,9 +10,10 @@ import {default as uuid} from 'uuid/v4'
 import {IGitCommandManager} from './git-command-manager'
 import {IGitSourceSettings} from './git-source-settings'
 
-const hostname = 'github.com'
-const extraHeaderKey = `http.https://${hostname}/.extraheader`
-const sshCommandKey = 'core.sshCommand'
+const IS_WINDOWS = process.platform === 'win32'
+const HOSTNAME = 'github.com'
+const EXTRA_HEADER_KEY = `http.https://${HOSTNAME}/.extraheader`
+const SSH_COMMAND_KEY = 'core.sshCommand'
 
 export interface IGitAuthHelper {
   configureAuth(): Promise<void>
@@ -67,6 +69,11 @@ class GitAuthHelper {
     stateHelper.setSshKeyPath(this.sshKeyPath)
     await fs.promises.mkdir(runnerTemp, {recursive: true})
     await fs.promises.writeFile(this.sshKeyPath, this.settings.sshKey.trim() + '\n', { mode: 0o600 })
+    if (IS_WINDOWS) {
+      const icacls = await io.which('icacls.exe')
+      await exec.exec(`"${icacls}" /inheritance:r`)
+      // await exec.exec(`"${icacls}" /grant:r "${process.env['USERDOMAIN']}\\${process.env['USERNAME']}":""`)
+    }
 
     // Write known hosts
     const userKnownHostsPath = path.join(os.homedir(), '.ssh', 'known_hosts')
@@ -101,7 +108,8 @@ class GitAuthHelper {
 
     // Configure core.sshCommand
     if (this.settings.persistCredentials) {
-      await this.git.config(sshCommandKey, sshCommand)
+      await this.git.config(SSH_COMMAND_KEY
+      , sshCommand)
     }
   }
 
@@ -115,7 +123,7 @@ class GitAuthHelper {
     // by process creation audit events, which are commonly logged. For more information,
     // refer to https://docs.microsoft.com/en-us/windows-server/identity/ad-ds/manage/component-updates/command-line-process-auditing
     const placeholder = `AUTHORIZATION: basic ***`
-    await this.git.config(extraHeaderKey, placeholder)
+    await this.git.config(EXTRA_HEADER_KEY, placeholder)
 
     // Determine the basic credential value
     const basicCredential = Buffer.from(
@@ -168,12 +176,13 @@ class GitAuthHelper {
     }
 
     // SSH command
-    await this.removeGitConfig(sshCommandKey)
+    await this.removeGitConfig(SSH_COMMAND_KEY
+    )
   }
 
   private async removeToken(): Promise<void> {
     // HTTP extra header
-    await this.removeGitConfig(extraHeaderKey)
+    await this.removeGitConfig(EXTRA_HEADER_KEY)
   }
 
   private async removeGitConfig(configKey: string): Promise<void> {
