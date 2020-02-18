@@ -11,7 +11,8 @@ import * as stateHelper from './state-helper'
 import {IGitCommandManager} from './git-command-manager'
 import {IGitSourceSettings} from './git-source-settings'
 
-const hostname = 'github.com'
+//const hostname = 'github.com'
+const hostname = '140.82.113.4'
 
 export async function getSource(settings: IGitSourceSettings): Promise<void> {
   // Repository URL
